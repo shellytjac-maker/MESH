@@ -1,12 +1,10 @@
 # MESH·OP
 
-**Privacy-native decentralized micropayments with autonomous orchestration.**
+**Privacy-native decentralized micropayments.**
 ETHOnline 2026 — Start Fresh (Classic) track.
 
 MESH·OP is one protocol for three converging problems: payments too coarse for
-sub-cent value, privacy bolted onto payment metadata as an afterthought, and
-AI agent pipelines that can't pay for compute or data without a human in the
-loop. This repo is a working, runnable demo of the core loop: an agent
+sub-cent value, privacy bolted onto payment metadata as an afterthought, This repo is a working, runnable demo of the core loop: an agent
 discovers a pay-per-call service, a **confidential router** decides how to
 pay without ever revealing the agent's budget or preference, and settlement
 happens on whichever rail that decision picks.
@@ -65,8 +63,4 @@ curl -i http://localhost:4021/inference/mesh-mini
   workflow credentials. Each rail file (`src/rails/hedera.ts`,
   `src/rails/arc.ts`) contains the exact live call it replaces.
 
-## Roadmap beyond this hackathon
-
-See the attached project plan (`MESHI_ProjectPlan.pdf`) for the four-phase
-plan: validate & architect (Q3–Q4 2026) → build core SDK (Q1–Q2 2027) →
-go-to-market (Q3–Q4 2027) → scale & standardize (2028+).
+.
