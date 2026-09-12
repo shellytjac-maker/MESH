@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
 import {IPaymaster, UserOperation} from "./interfaces/IERC4337Minimal.sol";
@@ -9,6 +10,19 @@ interface IERC20 {
     function balanceOf(address account) external view returns (uint256);
 }
 
+/// @title USDCPaymaster
+/// @notice Sponsors gas for UserOperations, denominated directly in USDC.
+/// Because Arc's native gas token IS USDC, this paymaster does not need a
+/// price oracle or conversion math the way an ETH-gas-chain paymaster would
+/// -- `actualGasCost` from the EntryPoint is already in the same unit we
+/// bill the user in. That's a real simplification specific to building on
+/// Arc.
+///
+/// Sponsorship policy here is a signed-offchain-approval pattern: a backend
+/// service co-signs UserOperations it's willing to sponsor (e.g. "first 50
+/// transactions free", "sponsor anything under $1", fraud/rate-limit
+/// checks done off-chain). Swap `trustedSigner` verification for whatever
+/// on-chain policy you want once you have real usage data.
 contract USDCPaymaster is IPaymaster {
     using ECDSA for bytes32;
 
@@ -41,6 +55,7 @@ contract USDCPaymaster is IPaymaster {
         owner = msg.sender;
     }
 
+    /// @dev paymasterAndData layout: [paymaster address][uint48 validUntil][signature]
     function validatePaymasterUserOp(
         UserOperation calldata userOp,
         bytes32 userOpHash,
@@ -55,6 +70,7 @@ contract USDCPaymaster is IPaymaster {
 
         if (signer != trustedSigner) revert InvalidSponsorSignature();
 
+        // packed validationData: (validAfter=0, validUntil, sigFailed=0)
         validationData = uint256(validUntil) << 160;
         context = abi.encode(userOp.sender);
     }
@@ -68,6 +84,10 @@ contract USDCPaymaster is IPaymaster {
 
         address account = abi.decode(context, (address));
 
+        // Pull reimbursement in USDC from the user's smart account.
+        // Requires the account to have approved this paymaster beforehand,
+        // or -- cleaner for the shielded-pool version in Phase 2+ -- have
+        // the shielded pool itself deduct a fee note and forward it here.
         bool ok = IERC20(usdc).transferFrom(account, address(this), actualGasCost);
         if (!ok) revert ReimbursementFailed();
 
@@ -79,6 +99,7 @@ contract USDCPaymaster is IPaymaster {
     }
 
     function _decodePaymasterData(bytes calldata data) internal pure returns (uint48 validUntil, bytes memory sig) {
+        // skip first 20 bytes (paymaster address, handled by EntryPoint already)
         validUntil = uint48(bytes6(data[20:26]));
         sig = data[26:];
     }

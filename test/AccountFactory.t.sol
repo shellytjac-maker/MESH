@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
 import {Test} from "forge-std/Test.sol";
@@ -26,7 +27,7 @@ contract AccountFactoryTest is Test {
     function test_createAccount_isIdempotent() public {
         uint256 salt = 42;
         address first = factory.createAccount(user, salt);
-        address second = factory.createAccount(user, salt);
+        address second = factory.createAccount(user, salt); // should not redeploy or revert
 
         assertEq(first, second);
     }
