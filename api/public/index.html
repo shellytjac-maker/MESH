@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>MESH — Agent-Safe Micropayments</title>
+<style>
+  :root {
+    --bg: #0b0d12;
+    --card: #14171f;
+    --border: #262b36;
+    --text: #e8eaed;
+    --muted: #8b93a3;
+    --accent: #5b8def;
+    --good: #3ecf8e;
+    --bad: #f26d6d;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding: 32px;
+  }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 28px; font-size: 14px; }
+  .grid { display: grid; grid-template-columns: 340px 1fr; gap: 24px; align-items: start; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+  }
+  .card h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin: 0 0 14px; }
+  label { display: block; font-size: 12px; color: var(--muted); margin: 10px 0 4px; }
+  input {
+    width: 100%;
+    background: #0e1117;
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 14px;
+  }
+  button {
+    cursor: pointer;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .btn-primary { background: var(--accent); color: white; width: 100%; margin-top: 14px; padding: 10px; }
+  .btn-small { background: #232838; color: var(--text); margin-right: 6px; margin-top: 6px; }
+  .btn-danger { background: transparent; color: var(--bad); border: 1px solid var(--bad); }
+  .agent {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+  .agent-top { display: flex; justify-content: space-between; align-items: baseline; }
+  .agent-name { font-weight: 600; }
+  .agent-addr { color: var(--muted); font-size: 11px; font-family: monospace; }
+  .bar-track { background: #0e1117; border-radius: 5px; height: 8px; margin: 10px 0 6px; overflow: hidden; }
+  .bar-fill { background: var(--good); height: 100%; transition: width 0.3s ease; }
+  .status { font-size: 12px; }
+  .status.revoked { color: var(--bad); }
+  .status.active { color: var(--good); }
+  #log {
+    font-family: monospace;
+    font-size: 12px;
+    background: #0e1117;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    height: 220px;
+    overflow-y: auto;
+    margin-top: 20px;
+  }
+  .log-line { margin-bottom: 4px; }
+  .log-ok { color: var(--good); }
+  .log-err { color: var(--bad); }
+  .empty { color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+
+<h1>MESH — Agent-Safe Micropayments</h1>
+<p class="sub">Autonomous agents get scoped, revocable spending keys -- enforced on-chain, not by a database flag.</p>
+
+<div class="grid">
+  <div class="card">
+    <h2>Create Agent</h2>
+    <label>Label</label>
+    <input id="labelInput" value="Shopping Agent" />
+    <label>Spending cap (USD)</label>
+    <input id="capInput" type="number" value="1.00" step="0.01" />
+    <label>Expires in (minutes)</label>
+    <input id="durInput" type="number" value="60" />
+    <button class="btn-primary" onclick="createAgent()">Authorize new agent</button>
+  </div>
+
+  <div class="card">
+    <h2>Agents</h2>
+    <div id="agentList"><p class="empty">No agents yet -- create one on the left.</p></div>
+  </div>
+</div>
+
+<div id="log"></div>
+
+<script>
+const API = '/api';
+const MERCHANT = '0x000000000000000000000000000000000000dEaD';
+let agents = {};
+
+function logLine(text, ok = true) {
+  const el = document.getElementById('log');
+  const line = document.createElement('div');
+  line.className = 'log-line ' + (ok ? 'log-ok' : 'log-err');
+  const time = new Date().toLocaleTimeString();
+  line.textContent = `[${time}] ${text}`;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+function short(addr) {
+  return addr.slice(0, 6) + '...' + addr.slice(-4);
+}
+
+async function createAgent() {
+  const label = document.getElementById('labelInput').value || 'Agent';
+  const capUsd = parseFloat(document.getElementById('capInput').value);
+  const durationSeconds = parseInt(document.getElementById('durInput').value, 10) * 60;
+
+  try {
+    const res = await fetch(`${API}/agents`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ label, capUsd, durationSeconds })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'failed');
+
+    agents[data.agentId] = { ...data, remainingCapUsd: data.capUsd, revoked: false };
+    logLine(`Agent "${label}" authorized with $${capUsd} cap (tx ${short(data.txHash)})`);
+    render();
+  } catch (err) {
+    logLine('Create agent failed: ' + err.message, false);
+  }
+}
+
+async function pay(agentId, amountUsd) {
+  try {
+    const res = await fetch(`${API}/agents/${agentId}/pay`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to: MERCHANT, amountUsd })
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'rejected');
+
+    agents[agentId].remainingCapUsd = data.remainingCapUsd;
+    logLine(`Paid $${amountUsd.toFixed(2)} -- remaining budget $${data.remainingCapUsd.toFixed(2)}`);
+  } catch (err) {
+    logLine(`Payment of $${amountUsd.toFixed(2)} rejected: ` + err.message, false);
+  }
+  render();
+}
+
+async function revoke(agentId) {
+  try {
+    const res = await fetch(`${API}/agents/${agentId}/revoke`, { method: 'POST' });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'failed');
+
+    agents[agentId].revoked = true;
+    logLine(`Agent ${short(agentId)} revoked instantly (tx ${short(data.txHash)})`);
+  } catch (err) {
+    logLine('Revoke failed: ' + err.message, false);
+  }
+  render();
+}
+
+function render() {
+  const container = document.getElementById('agentList');
+  const list = Object.values(agents);
+  if (list.length === 0) {
+    container.innerHTML = '<p class="empty">No agents yet -- create one on the left.</p>';
+    return;
+  }
+  container.innerHTML = list.map((a) => {
+    const pct = Math.max(0, Math.min(100, (a.remainingCapUsd / a.capUsd) * 100));
+    return `
+      <div class="agent">
+        <div class="agent-top">
+          <span class="agent-name">${a.label}</span>
+          <span class="status ${a.revoked ? 'revoked' : 'active'}">${a.revoked ? 'REVOKED' : 'ACTIVE'}</span>
+        </div>
+        <div class="agent-addr">${a.address}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
+        <div class="status">Remaining: $${a.remainingCapUsd.toFixed(2)} / $${a.capUsd.toFixed(2)}</div>
+        <div>
+          <button class="btn-small" ${a.revoked ? 'disabled' : ''} onclick="pay('${a.address}', 0.10)">Pay $0.10</button>
+          <button class="btn-small" ${a.revoked ? 'disabled' : ''} onclick="pay('${a.address}', 5.00)">Try $5.00 (should fail)</button>
+          <button class="btn-small btn-danger" ${a.revoked ? 'disabled' : ''} onclick="revoke('${a.address}')">Revoke</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+logLine('Dashboard ready. Connected to ' + API);
+</script>
+
+</body>
+</html>
