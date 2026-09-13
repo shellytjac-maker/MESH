@@ -7,7 +7,7 @@ const { ethers } = require('ethers');
 const deployed = JSON.parse(fs.readFileSync(path.join(__dirname, 'deployed.json'), 'utf8'));
 
 const rpcUrl = process.env.RPC_URL || deployed.rpcUrl || "https://ethereum-sepolia-rpc.publicnode.com";
-
+const provider = new ethers.JsonRpcProvider(rpcUrl);
 const sessionAccountAbi = deployed.abis.sessionAccount;
 const mockUsdcAbi = deployed.abis.mockUsdc;
 const sessionAccountIface = new ethers.Interface(sessionAccountAbi);
