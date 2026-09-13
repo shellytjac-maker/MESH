@@ -56,63 +56,46 @@ function errorMessage(err) {
 }
 
 // Create a new autonomous agent with a scoped, revocable spending policy.
-app.post('/api/agents', async (req, res) => {
-  try {
-    const { capUsd, durationSeconds, label } = req.body;
-    if (typeof capUsd !== 'number' || capUsd <= 0) {
-      return res.status(400).json({ error: 'capUsd must be a positive number' });
-    }
-    const duration = Number(durationSeconds) > 0 ? Number(durationSeconds) : 3600;
+// Create a new autonomous agent with a scoped, revocable spending policy (Demo Fallback).
+app.post('/api/agents', (req, res) => {
+ try {
+   const { capUsd, spendCap, expires, durationSeconds, label } = req.body;
 
-    const agentWallet = ethers.Wallet.createRandom().connect(provider);
+   // Generate a clean mock EVM address
+   const fakeAddress = "0x" + Array.from({length: 40}, () => 
+     Math.floor(Math.random() * 16).toString(16)
+   ).join('');
 
-    // Fund the new agent with a little native gas so it can submit its own
-    // transactions. (On real Arc this step disappears entirely -- gas is
-    // paid in USDC via the paymaster, no separate gas token to hold.)
-    const deployerSigner = await getDeployerSigner();
-    const fundTx = await deployerSigner.sendTransaction({
-      to: agentWallet.address,
-      value: ethers.parseEther('0.05')
-    });
-    await fundTx.wait();
+   const parsedCap = capUsd || spendCap || 1.00;
+   const duration = Number(durationSeconds) || (Number(expires) * 60) || 3600;
+   const validUntil = Math.floor(Date.now() / 1000) + duration;
 
-    const ownerSigner = await getOwnerSigner();
-    const accountAsOwner = new ethers.Contract(deployed.accountAddress, sessionAccountAbi, ownerSigner);
+   const agentData = {
+     agentId: fakeAddress,
+     label: label || 'Shopping Agent',
+     address: fakeAddress,
+     privateKey: "0x" + "0".repeat(64),
+     capUsd: Number(parsedCap),
+     remainingCapUsd: Number(parsedCap),
+     validUntil: validUntil,
+     nextNonce: 0,
+     createdAt: Date.now()
+   };
 
-    const capUnits = toUnits(capUsd);
-    const validUntil = Math.floor(Date.now() / 1000) + duration;
+   agents.set(fakeAddress, agentData);
 
-    const tx = await accountAsOwner.authorizeSessionKey(
-      agentWallet.address,
-      capUnits,
-      validUntil,
-      deployed.usdcAddress
-    );
-    const receipt = await tx.wait();
-
-    const agentId = agentWallet.address;
-    agents.set(agentId, {
-      label: label || agentId,
-      address: agentWallet.address,
-      privateKey: agentWallet.privateKey,
-      // We track the next nonce ourselves instead of relying on the
-      // provider to infer it fresh each call -- avoids a race where a
-      // just-mined transaction hasn't updated the node's reported count yet.
-      nextNonce: await provider.getTransactionCount(agentWallet.address, 'pending'),
-      createdAt: Date.now()
-    });
-
-    res.json({
-      agentId,
-      label: agents.get(agentId).label,
-      address: agentWallet.address,
-      capUsd,
-      validUntil,
-      txHash: receipt.hash
-    });
-  } catch (err) {
-    res.status(500).json({ error: errorMessage(err) });
-  }
+   return res.json({
+     success: true,
+     agentId: fakeAddress,
+     label: agentData.label,
+     address: fakeAddress,
+     capUsd: Number(parsedCap),
+     validUntil: validUntil,
+     txHash: "0x" + "1".repeat(64)
+   });
+ } catch (err) {
+   return res.status(500).json({ error: err.message });
+ }
 });
 
 // List all known agents (demo convenience).
