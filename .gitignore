@@ -18,3 +18,5 @@ docs/
 .env
 .env.*
 !.env.example
+node_modules/
+api/deploy.json
