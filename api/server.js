@@ -6,7 +6,7 @@ const { ethers } = require('ethers');
 
 const deployed = JSON.parse(fs.readFileSync(path.join(__dirname, 'deployed.json'), 'utf8'));
 
-const provider = new ethers.JsonRpcProvider(deployed.rpcUrl);
+const rpcUrl = process.env.RPC_URL || deployed.rpcUrl || "https://ethereum-sepolia-rpc.publicnode.com";
 
 const sessionAccountAbi = deployed.abis.sessionAccount;
 const mockUsdcAbi = deployed.abis.mockUsdc;
@@ -14,8 +14,7 @@ const sessionAccountIface = new ethers.Interface(sessionAccountAbi);
 
 const usdc = new ethers.Contract(deployed.usdcAddress, mockUsdcAbi, provider);
 
-// In-memory agent registry -- fine for a demo; a real deployment would use
-// a database and would never hold agent private keys in server memory.
+// In-memory agent registry
 // Each "agent" is its own EOA keypair acting as a SessionAccount session key.
 const agents = new Map();
 
