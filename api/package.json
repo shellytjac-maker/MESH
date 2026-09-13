@@ -4,14 +4,19 @@
   "description": "Agent-safe micropayments API demo for MESH",
   "main": "server.js",
   "type": "commonjs",
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "deploy": "node deploy.js",
     "start": "node server.js",
-    "demo": "node demo-client.js"
+    "demo": "node demo-client.js",
+    "start:prod": "node production-server.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
     "ethers": "^6.13.4",
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "ganache": "^7.9.2"
   }
 }
