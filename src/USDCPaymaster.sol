@@ -56,16 +56,15 @@ contract USDCPaymaster is IPaymaster {
     }
 
     /// @dev paymasterAndData layout: [paymaster address][uint48 validUntil][signature]
-    function validatePaymasterUserOp(
-        UserOperation calldata userOp,
-        bytes32 userOpHash,
-        uint256 maxCost
-    ) external override onlyEntryPoint returns (bytes memory context, uint256 validationData) {
+    function validatePaymasterUserOp(UserOperation calldata userOp, bytes32 userOpHash, uint256 maxCost)
+        external
+        override
+        onlyEntryPoint
+        returns (bytes memory context, uint256 validationData)
+    {
         (uint48 validUntil, bytes memory sig) = _decodePaymasterData(userOp.paymasterAndData);
 
-        bytes32 approvalHash = keccak256(
-            abi.encode(userOp.sender, userOp.nonce, maxCost, validUntil, block.chainid)
-        );
+        bytes32 approvalHash = keccak256(abi.encode(userOp.sender, userOp.nonce, maxCost, validUntil, block.chainid));
         address signer = MessageHashUtils.toEthSignedMessageHash(approvalHash).recover(sig);
 
         if (signer != trustedSigner) revert InvalidSponsorSignature();
@@ -75,11 +74,7 @@ contract USDCPaymaster is IPaymaster {
         context = abi.encode(userOp.sender);
     }
 
-    function postOp(
-        PostOpMode mode,
-        bytes calldata context,
-        uint256 actualGasCost
-    ) external override onlyEntryPoint {
+    function postOp(PostOpMode mode, bytes calldata context, uint256 actualGasCost) external override onlyEntryPoint {
         if (mode == PostOpMode.postOpReverted) return;
 
         address account = abi.decode(context, (address));

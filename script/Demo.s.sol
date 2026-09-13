@@ -61,12 +61,13 @@ contract Demo is Script {
         console.log("  Policy: up to 1.00 USDC total, expires in 7 days, USDC only.");
         address sessionKey = address(0x5E55104E);
         vm.prank(alice);
-        SessionAccount(payable(aliceAccount)).authorizeSessionKey(
-            sessionKey,
-            1_000_000, // 1.00 USDC cap
-            uint48(block.timestamp + 7 days),
-            address(usdc)
-        );
+        SessionAccount(payable(aliceAccount))
+            .authorizeSessionKey(
+                sessionKey,
+                1_000_000, // 1.00 USDC cap
+                uint48(block.timestamp + 7 days),
+                address(usdc)
+            );
         console.log("  Session key authorized. Alice will not need to sign again");
         console.log("  for any single charge within this cap and window.");
         console.log("");

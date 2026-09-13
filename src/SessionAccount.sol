@@ -29,9 +29,9 @@ contract SessionAccount is IAccount {
     address public immutable entryPoint;
 
     struct SessionKey {
-        uint256 spendCap;      // remaining budget, in the token's smallest unit
-        uint48 validUntil;     // unix timestamp
-        address allowedToken;  // token this session key may move (e.g. USDC)
+        uint256 spendCap; // remaining budget, in the token's smallest unit
+        uint48 validUntil; // unix timestamp
+        address allowedToken; // token this session key may move (e.g. USDC)
         bool revoked;
     }
 
@@ -66,11 +66,12 @@ contract SessionAccount is IAccount {
     // ERC-4337 required entrypoint
     // ---------------------------------------------------------------
 
-    function validateUserOp(
-        UserOperation calldata userOp,
-        bytes32 userOpHash,
-        uint256 missingAccountFunds
-    ) external override onlyEntryPoint returns (uint256 validationData) {
+    function validateUserOp(UserOperation calldata userOp, bytes32 userOpHash, uint256 missingAccountFunds)
+        external
+        override
+        onlyEntryPoint
+        returns (uint256 validationData)
+    {
         bytes32 ethSignedHash = MessageHashUtils.toEthSignedMessageHash(userOpHash);
         address recovered = ethSignedHash.recover(userOp.signature);
 
@@ -90,7 +91,7 @@ contract SessionAccount is IAccount {
         }
 
         if (missingAccountFunds > 0) {
-            (bool ok, ) = payable(msg.sender).call{value: missingAccountFunds}("");
+            (bool ok,) = payable(msg.sender).call{value: missingAccountFunds}("");
             require(ok, "prefund failed");
         }
 
@@ -101,18 +102,8 @@ contract SessionAccount is IAccount {
     // Owner-controlled account management
     // ---------------------------------------------------------------
 
-    function authorizeSessionKey(
-        address key,
-        uint256 spendCap,
-        uint48 validUntil,
-        address token
-    ) external onlyOwner {
-        sessionKeys[key] = SessionKey({
-            spendCap: spendCap,
-            validUntil: validUntil,
-            allowedToken: token,
-            revoked: false
-        });
+    function authorizeSessionKey(address key, uint256 spendCap, uint48 validUntil, address token) external onlyOwner {
+        sessionKeys[key] = SessionKey({spendCap: spendCap, validUntil: validUntil, allowedToken: token, revoked: false});
         emit SessionKeyAuthorized(key, spendCap, validUntil, token);
     }
 
@@ -141,9 +132,7 @@ contract SessionAccount is IAccount {
 
         sk.spendCap -= amount;
 
-        (bool ok, ) = token.call(
-            abi.encodeWithSignature("transfer(address,uint256)", to, amount)
-        );
+        (bool ok,) = token.call(abi.encodeWithSignature("transfer(address,uint256)", to, amount));
         require(ok, "token transfer failed");
 
         emit SessionSpend(msg.sender, token, to, amount);

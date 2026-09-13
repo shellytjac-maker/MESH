@@ -23,24 +23,15 @@ contract AccountFactory {
             return predicted; // already deployed
         }
 
-        account = address(
-            new SessionAccount{salt: bytes32(salt)}(entryPoint, owner)
-        );
+        account = address(new SessionAccount{salt: bytes32(salt)}(entryPoint, owner));
         emit AccountCreated(account, owner, salt);
     }
 
     function getAddress(address owner, uint256 salt) public view returns (address) {
-        bytes memory bytecode = abi.encodePacked(
-            type(SessionAccount).creationCode,
-            abi.encode(entryPoint, owner)
-        );
+        bytes memory bytecode = abi.encodePacked(type(SessionAccount).creationCode, abi.encode(entryPoint, owner));
         return address(
             uint160(
-                uint256(
-                    keccak256(
-                        abi.encodePacked(bytes1(0xff), address(this), bytes32(salt), keccak256(bytecode))
-                    )
-                )
+                uint256(keccak256(abi.encodePacked(bytes1(0xff), address(this), bytes32(salt), keccak256(bytecode))))
             )
         );
     }

@@ -23,11 +23,9 @@ struct UserOperation {
 interface IAccount {
     /// @return validationData 0 for valid signature, 1 for invalid,
     /// or a packed (validAfter, validUntil, aggregator) value for time-bound validity.
-    function validateUserOp(
-        UserOperation calldata userOp,
-        bytes32 userOpHash,
-        uint256 missingAccountFunds
-    ) external returns (uint256 validationData);
+    function validateUserOp(UserOperation calldata userOp, bytes32 userOpHash, uint256 missingAccountFunds)
+        external
+        returns (uint256 validationData);
 }
 
 interface IPaymaster {
@@ -37,15 +35,9 @@ interface IPaymaster {
         postOpReverted
     }
 
-    function validatePaymasterUserOp(
-        UserOperation calldata userOp,
-        bytes32 userOpHash,
-        uint256 maxCost
-    ) external returns (bytes memory context, uint256 validationData);
+    function validatePaymasterUserOp(UserOperation calldata userOp, bytes32 userOpHash, uint256 maxCost)
+        external
+        returns (bytes memory context, uint256 validationData);
 
-    function postOp(
-        PostOpMode mode,
-        bytes calldata context,
-        uint256 actualGasCost
-    ) external;
+    function postOp(PostOpMode mode, bytes calldata context, uint256 actualGasCost) external;
 }

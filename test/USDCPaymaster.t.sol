@@ -67,7 +67,9 @@ contract USDCPaymasterTest is Test {
         vm.prank(entryPoint);
         paymaster.postOp(IPaymaster.PostOpMode.opSucceeded, context, 42_000);
 
-        assertEq(usdc.balanceOf(address(paymaster)) - balBefore, 42_000, "paymaster should be reimbursed exact gas cost");
+        assertEq(
+            usdc.balanceOf(address(paymaster)) - balBefore, 42_000, "paymaster should be reimbursed exact gas cost"
+        );
     }
 
     function test_postOp_skipsReimbursementIfPostOpReverted() public {
